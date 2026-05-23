@@ -16,11 +16,26 @@ export default function configStore<
     states, syncHandlers, asyncHandlers
 }: ConfigStoreProps<S, SH, AH>) {
 
+    const autoBuildHandlers = cookAutoBuildHandlers(states, () => notify());
     
+    const syncHandlersObj = mapObject(syncHandlers ?? {}, (handler: any) => (
+        (...args: any[]) => { 
+            handler({states, handlers: autoBuildHandlers}, ...args); 
+            notify(); 
+        }
+    ));
+    
+    const asyncHandlersObj = mapObject(asyncHandlers ?? {}, (handler: any) => (
+        async (...args: any[]) => { 
+            await handler({states, handlers: autoBuildHandlers}, ...args); 
+            notify(); 
+        }
+    ));
+
     const handlers = Object.freeze({
-        ...mapObject(syncHandlers ?? {}, (handler: any) => (...args: any[]) => { handler(states, ...args); notify(); }),
-        ...mapObject(asyncHandlers ?? {}, (handler: any) => async (...args: any[]) => { await handler(states, ...args); notify(); }),
-        ...cookAutoBuildHandlers(states, notify),
+        ...syncHandlersObj,
+        ...asyncHandlersObj,
+        ...autoBuildHandlers,
     }) as UseHandlers<S, SH, AH>;
 
 
