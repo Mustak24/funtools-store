@@ -44,6 +44,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "dev:yalc": "chokidar 'src/**/*' -c 'npm run build && yalc push'"
   }
 }
