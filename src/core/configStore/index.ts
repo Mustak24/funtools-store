@@ -40,8 +40,7 @@ export default function configStore<
 
 
     const consumers = new Map<string, () => void>();
-
-    function consume(cb: () => void, storeId: string) {
+    function consume(storeId: string, cb: () => void) {
         consumers.set(storeId, cb);
         return () => consumers.delete(storeId);
     }
@@ -60,7 +59,6 @@ export default function configStore<
             cb();
         });
     }
-
 
     function getSnapshot<T>(storeId: string, selector: (state: S) => T): T {
         const newSnapshot = selector(states);
@@ -87,7 +85,6 @@ export default function configStore<
         
         return oldSnapshot.val as T;
     }
-
 
     return {
         handlers,
