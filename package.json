@@ -45,6 +45,6 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "prepublishOnly": "npm run build",
-    "dev:yalc": "chokidar 'src/**/*' -c 'npm run build && yalc push'"
+    "dev:yalc": "chokidar 'src/**/*' --debounce 1000 -c 'npm run build && yalc push'"
   }
 }
