@@ -39,35 +39,52 @@ export default function configStore<
     }) as UseHandlers<S, SH, AH>;
 
 
-    const consumers = new Set<() => void>();
-
+    const consumers = new Map<string, () => void>();
+    function consume(storeId: string, cb: () => void) {
+        consumers.set(storeId, cb);
+        return () => consumers.delete(storeId);
+    }
     
-    function consume(consumer: () => void) {
-        consumers.add(consumer);
-        return () => consumers.delete(consumer);
-    }
-
-
+    const cache = new Map<string, {
+        val: any,
+        isNeededToUpdate: boolean
+    }>();
+    
     function notify() {
-        consumers.forEach(con => con());
+        consumers.forEach((cb, key) => {
+            const snapshot = cache.get(key);
+            if(snapshot) {
+                snapshot.isNeededToUpdate = true;
+            }
+            cb();
+        });
     }
 
-
-    const snapshotCache = new WeakMap<(state: S) => any, any>();
-
-
-    function getSnapshot<T>(selector: (state: S) => T): T {
+    function getSnapshot<T>(storeId: string, selector: (state: S) => T): T {
         const newSnapshot = selector(states);
-        const cachedSnapshot = snapshotCache.get(selector);
+        const oldSnapshot = cache.get(storeId);
 
-        if(cachedSnapshot && shallowEqual(newSnapshot, cachedSnapshot)) {
-            return cachedSnapshot as T;
+        if(!oldSnapshot) {
+            cache.set(storeId, {
+                val: newSnapshot,
+                isNeededToUpdate: false
+            });
+
+            return newSnapshot as T;
         }
-            
-        snapshotCache.set(selector, newSnapshot);
-        return Object.freeze(newSnapshot);
-    }
 
+        if(oldSnapshot.isNeededToUpdate) {
+            oldSnapshot.isNeededToUpdate = false;
+            if(shallowEqual(newSnapshot, oldSnapshot.val)) {
+                return oldSnapshot.val as T;
+            }
+
+            oldSnapshot.val = newSnapshot;
+            return oldSnapshot.val as T;
+        }
+        
+        return oldSnapshot.val as T;
+    }
 
     return {
         handlers,

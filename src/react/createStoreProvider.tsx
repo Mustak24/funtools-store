@@ -3,7 +3,6 @@ import { ConfigStoreProps, GSH, GAH, UseHandlers } from "../core/configStore/typ
 import createStore, { CreateStore } from "./createStore";
 
 
-
 export default function createStoreProvider<
     S extends Record<string, any>, 
     SH extends GSH<S> = GSH<S>, 
@@ -26,7 +25,7 @@ export default function createStoreProvider<
         )
     }
 
-    
+
     function useStore<T>(selector: (states: S) => T): T {
         const store = useContext(Context);
         if(!store) throw Error('Store Provider is missing !!');
