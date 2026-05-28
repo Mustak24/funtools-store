@@ -8,6 +8,10 @@ export type ArrayHandlers<S extends Array<any>, V = S extends Array<infer T> ? T
     unShift: (val: V) => V;
     update: (index: number, val: Action<V>) => V;
     remove: (index: number) => V;
+    findAndUpdate: (predicate: (val: V) => boolean, val: Action<V>) => V | undefined;
+    findAndRemove: (predicate: (val: V) => boolean) => V | undefined;
+    map: (callback: (val: V, index: number) => V) => V[];
+    filter: (callback: (val: V, index: number) => boolean) => V[];
 } : {}
 
 
@@ -55,6 +59,40 @@ export default function arrayHandlers<S extends Array<any>, V = S extends Array<
             const newState = state.filter((_, i) => i !== index);
             setState([...newState] as S);
             return removed;
+        },
+
+        findAndUpdate: (predicate: (val: V) => boolean, val: Action<V>) => {
+            const state = getState();
+            const index = state.findIndex(predicate);
+            if (index === -1) return undefined;
+            const newState = [...state];
+            newState[index] = runAction(val, state[index]);
+            setState(newState as S);
+            return newState[index];
+        },
+
+        findAndRemove: (predicate: (val: V) => boolean) => {
+            const state = getState();
+            const index = state.findIndex(predicate);
+            if (index === -1) return undefined;
+            const removed = state[index];
+            const newState = state.filter((_, i) => i !== index);
+            setState([...newState] as S);
+            return removed;
+        },
+
+        map: (callback: (val: V, index: number) => V) => {
+            const state = getState();
+            const newState = state.map(callback);
+            setState(newState as S);
+            return newState;
+        },
+
+        filter: (callback: (val: V, index: number) => boolean) => {
+            const state = getState();
+            const newState = state.filter(callback);
+            setState(newState as S);
+            return newState;
         }
     }
 }

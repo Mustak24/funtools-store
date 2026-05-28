@@ -1,143 +1,176 @@
 # @funtools/store
 
-> A simple and lightweight state management library for React apps
+# @funtools/store
+
+> Lightweight external store for React, React Native and Next.js
 
 [![npm version](https://img.shields.io/npm/v/@funtools/store.svg)](https://www.npmjs.com/package/@funtools/store)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## 📋 What is @funtools/store?
+This README documents the current API and usage based on the library source in `src/`.
 
-`@funtools/store` is an easy-to-use state management library for React. Think of it as a smarter way to share data between your components without the complexity of Redux or other heavy tools.
+**Highlights**
+- Small, zero-dependency runtime for shared state
+- Auto-generated handlers for arrays, objects and booleans
+- `createStore` for global stores and `createStoreProvider` for scoped stores
 
-**Perfect for beginners and experienced developers alike!**
+## Quick install
 
-## ✨ Why Choose @funtools/store?
-
-- ✅ **Super Easy to Learn** - Get started in minutes, not hours
-- ✅ **Automatic Features** - Get built-in functions for free (no need to write repetitive code)
-- ✅ **TypeScript Friendly** - Get helpful suggestions as you type
-- ✅ **Very Small** - Won't bloat your app size
-- ✅ **Fast Performance** - Components only update when they need to
-- ✅ **Works Everywhere** - React, React Native, and Next.js
-
-## 📦 Installation
-
-Choose your favorite package manager:
+Install the published package or use the repo build for local development:
 
 ```bash
 npm install @funtools/store
 ```
 
-## 🚀 Quick Start - Your First Store
+To develop locally, build the package output (`dist/`):
 
-Let's create a simple counter in 3 easy steps:
+```bash
+npm run build
+```
 
-### Step 1: Create Your Store
+## Exports
+
+- `createStore(options)` — Create a global store for React usage.
+- `createStoreProvider(options)` — Returns `{ Provider, useStore, useHandlers }` for scoped stores.
+
+These are exported from the library root and from `react`.
+
+## Basic concepts
+
+- `states`: initial state object you pass when creating the store.
+- `syncHandlers`: optional object of synchronous custom handlers.
+- `asyncHandlers`: optional object of asynchronous custom handlers (returning Promises).
+- `useStore(selector)`: React hook to read part of the state. Components re-render only when selected snapshot changes.
+- `useHandlers()`: returns handlers (auto-generated + custom) to mutate state.
+
+## API examples
+
+Create a simple store:
 
 ```tsx
 import { createStore } from "@funtools/store";
 
-// Create a store with initial values
 const counterStore = createStore({
-    states: {
-        count: 0, // Our counter starts at 0
+    states: { count: 0 },
+    syncHandlers: {
+        increment: ({ states }) => { states.count += 1; }
     },
+    asyncHandlers: {
+        fetchAndSet: async ({ states }, url: string) => {
+            const r = await fetch(url);
+            const data = await r.json();
+            states.count = data.value;
+        }
+    }
 });
-```
 
-### Step 2: Use It in a Component
-
-```tsx
 function Counter() {
-    // Get the count value
-    const count = counterStore.useStore((state) => state.count);
-
-    // Get the handlers (functions to change the state)
+    const count = counterStore.useStore(s => s.count);
     const handlers = counterStore.useHandlers();
 
     return (
         <div>
-            <h1>Count: {count}</h1>
-            {/* Set count to a specific number */}
-            <button onClick={() => handlers.count.set(10)}>Set to 10</button>
-            {/* Increment using current value */}
-            <button onClick={() => handlers.count.set((prev) => prev + 1)}>
-                Add 1
-            </button>
-            {/* Reset to initial value (0) */}
-            <button onClick={() => handlers.count.reset()}>Reset</button>
+            <div>{count}</div>
+            <button onClick={() => handlers.increment()}>+1</button>
+            <button onClick={() => handlers.count.set((v) => v + 5)}>+5</button>
+            <button onClick={() => handlers.count.reset()}>reset</button>
         </div>
     );
 }
 ```
 
-That's it! You have a working counter. 🎉
-
-## 📖 Core Concepts
-
-### 1. Creating a Store
-
-A store is where you keep your app's data. It's like a box that holds all your values.
+Provider (scoped store) usage:
 
 ```tsx
-const myStore = createStore({
-    states: {
-        // Put all your data here
-        userName: "John",
-        age: 25,
-        isLoggedIn: false,
-    },
+import {createStoreProvider} from "@funtools/store";
+
+const { Provider, useStore, useHandlers } = createStoreProvider({
+    states: { theme: 'light' }
 });
-```
 
-### 2. Reading Data from the Store
-
-Use `useStore` to read data in your components:
-
-```tsx
-function MyComponent() {
-    // Method 1: Get one value
-    const userName = myStore.useStore((state) => state.userName);
-
-    // Method 2: Get multiple values
-    const { userName, age } = myStore.useStore((state) => ({
-        userName: state.userName,
-        age: state.age,
-    }));
-
+function App() {
     return (
-        <div>
-            Hello, {userName}! You are {age} years old.
-        </div>
+        <Provider>
+            <Toolbar />
+        </Provider>
     );
 }
-```
 
-### 3. Changing Data (Using Handlers)
+function Toolbar() {
+    const theme = useStore(s => s.theme);
+    const handlers = useHandlers();
 
-Handlers are functions that change your data. The library creates them automatically!
-
-```tsx
-function MyComponent() {
-    const handlers = myStore.useHandlers();
-
-    // Change the userName
-    handlers.userName.set("Jane");
-
-    // Reset to initial value
-    handlers.userName.reset();
+    return <button onClick={() => handlers.theme.set(theme === 'light' ? 'dark' : 'light')}>Toggle</button>
 }
 ```
 
-## 🎨 Auto-Generated Handlers
+## Auto-generated handlers
 
-The best part? You get **FREE handlers** based on your data type!
+For each key in `states` the library generates handlers under `handlers.<key>`:
 
-### For Simple Values (String, Number)
+- `set(action)` — set a value or pass a function `(prev) => next` (uses `runAction`).
+- `reset()` — restore the initial default value.
 
-```tsx
-const store = createStore({
-    states: {
+Additionally, based on the value type:
+
+- Arrays: `push`, `pop`, `shift`, `unShift`, `update(index, action)`, `remove(index)`
+- Booleans: `toggle()`
+- Objects: `update(path, action)` (dot-paths supported), `updateMany(partial)`
+
+Custom handlers declared in `syncHandlers` and `asyncHandlers` are wrapped so they receive `{ states, handlers }` as first argument and trigger notifications after execution.
+
+Example of using array handlers:
+
+```ts
+handlers.fruits.push('apple');
+handlers.fruits.update(0, (v) => v.toUpperCase());
+```
+
+## React behavior and snapshots
+
+- `useStore(selector)` uses `useSyncExternalStore` internally. You should pass a selector returning the piece of state your component needs.
+- The library caches snapshots per-hook instance and uses shallow equality to avoid unnecessary re-renders.
+
+## Types (TypeScript)
+
+Types are inferred from `states` and custom handlers. The main helper types live under `src/core/configStore/types.ts` and the public hooks return typed handlers and state slices.
+
+## Project layout and developing locally
+
+- `src/` — source files (entry is `src/index.ts`).
+- `app.test/` — small Vite React app that demonstrates library usage.
+
+Commands:
+
+```bash
+# build library
+npm run build
+
+# development watch
+npm run dev
+
+# run example app
+cd app.test
+npm install
+npm run dev
+```
+
+Tip: `app.test` depends on the built package. Use the `dev:yalc` script or publish locally with `yalc` to test changes without publishing to npm.
+
+## Contributing
+
+Open an issue or PR, follow standard GitHub contribution flow. See `package.json` for build scripts.
+
+## License
+
+MIT
+
+---
+
+If you'd like, I can also:
+- run `npm run build` and confirm `dist/` is produced,
+- start the example app (`app.test`) to verify the README examples work.
+Tell me which one you'd like me to run next.
         name: "John",
         age: 25,
     },
@@ -155,7 +188,6 @@ handlers.age.set((currentAge) => currentAge + 1);
 // ✅ Reset to initial value
 handlers.name.reset(); // Back to "John"
 handlers.age.reset(); // Back to 25
-```
 
 ### For Boolean (True/False)
 
@@ -724,8 +756,8 @@ Want to see your name here? [Start contributing today!](https://github.com/funto
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/funtools24/funtools-store)
-- [Report Issues](https://github.com/funtools24/funtools-store/issues)
+- [GitHub Repository](https://github.com/mustak24/funtools-store)
+- [Report Issues](https://github.com/mustak24/funtools-store/issues)
 - [NPM Package](https://www.npmjs.com/package/@funtools/store)
 
 ---
