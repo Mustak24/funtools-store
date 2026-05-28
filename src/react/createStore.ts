@@ -1,7 +1,8 @@
-import { useRef, useSyncExternalStore } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import configStore from "../core/configStore";
 import { ConfigStoreProps, GSH, GAH, States, UseHandlers } from "../core/configStore/types";
 import UUIDGenerator from "@/utils/functions/generateUUID";
+import protectSnapshot from "@/utils/functions/protectSnapshot";
 
 export default function createStore<
     S extends States, 
@@ -9,20 +10,29 @@ export default function createStore<
     AH extends GAH<S> = GAH<S>
 >(option: ConfigStoreProps<S, SH, AH>) {
     const {handlers, consume, getSnapshot} = configStore<S, SH, AH>(option);
-    const generateUUID = useRef(UUIDGenerator()).current;
+    const generateUUID = UUIDGenerator();
 
     function useStore<T>(selector: (state: S) => T): T {
-        const storeId = useRef(generateUUID());
-        const states = useSyncExternalStore(
-            (cb) => {
-                const unsubscribe = consume(storeId.current, cb);
-                return unsubscribe;
-            },
-            () => getSnapshot(storeId.current, selector),
-            () => getSnapshot(storeId.current, selector)
+        const storeIdRef = useRef<string | null>(null);
+
+        if(storeIdRef.current === null) {
+            storeIdRef.current = generateUUID();
+        }
+
+        const storeId = storeIdRef.current;
+
+        const subscribe = useCallback((cb: () => void) => {
+            const unsubscribe = consume(storeId, cb);
+            return unsubscribe;
+        }, [storeId])
+
+        const snapshot = useSyncExternalStore(
+            subscribe,
+            () => getSnapshot(storeId, selector),
+            () => getSnapshot(storeId, selector)
         );
-        
-        return Object.freeze(structuredClone(states));
+
+        return protectSnapshot(snapshot);
     }
 
     const useHandlers = (): UseHandlers<S, SH, AH> => handlers;

@@ -1,4 +1,3 @@
-
 export default function UUIDGenerator() {
   const idSet = new Set<string>();
 
