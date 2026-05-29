@@ -20,15 +20,17 @@ export default function configStore<
     
     const syncHandlersObj = mapObject(syncHandlers ?? {}, (handler: any) => (
         (...args: any[]) => { 
-            handler({states, handlers: autoBuildHandlers}, ...args); 
+            const val = handler({states, handlers: autoBuildHandlers}, ...args); 
             notify(); 
+            return val;
         }
     ));
     
     const asyncHandlersObj = mapObject(asyncHandlers ?? {}, (handler: any) => (
         async (...args: any[]) => { 
-            await handler({states, handlers: autoBuildHandlers}, ...args); 
+            const val = await handler({states, handlers: autoBuildHandlers}, ...args); 
             notify(); 
+            return val;
         }
     ));
 
@@ -78,7 +80,7 @@ export default function configStore<
             if(shallowEqual(newSnapshot, oldSnapshot.val)) {
                 return oldSnapshot.val as T;
             }
-
+            
             oldSnapshot.val = newSnapshot;
             return oldSnapshot.val as T;
         }

@@ -48,6 +48,7 @@ export default function arrayHandlers<S extends Array<any>, V = S extends Array<
         update: (index: number, val: Action<V>) => {
             const state = getState();
             const newState = [...state];
+            index = (index + state.length) % state.length;
             newState[index] = runAction(val, state[index]);
             setState(newState as S);
             return newState[index];
@@ -56,6 +57,7 @@ export default function arrayHandlers<S extends Array<any>, V = S extends Array<
         remove: (index: number) => {
             const state = getState();
             const removed = state[index];
+            index = (index + state.length) % state.length;
             const newState = state.filter((_, i) => i !== index);
             setState([...newState] as S);
             return removed;
